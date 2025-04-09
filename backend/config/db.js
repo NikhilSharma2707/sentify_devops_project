@@ -1,5 +1,8 @@
 const mongoose = require('mongoose');
 
+// Suppress the strictQuery warning
+mongoose.set('strictQuery', false);
+
 const connectDB = async () => {
   const mongoURI = process.env.MONGO_URI || 'mongodb://localhost/sentify';
   let retries = 5;

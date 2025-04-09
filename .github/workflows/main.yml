@@ -55,7 +55,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      # Copy build artifacts (backend and frontend build) to the EC2 instance
+      # Copy build artifacts (backend, frontend build, and ml source) to the EC2 instance
       - name: Copy Files to EC2 via SCP
         uses: appleboy/scp-action@master
         with:
@@ -63,7 +63,7 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
-          source: "backend/*, frontend/build/*"
+          source: "backend/*, frontend/build/*, ml/*"
           target: "/home/${{ secrets.EC2_USERNAME }}/sentify-deploy/"
 
       # Execute remote SSH commands on the EC2 instance to restart services
@@ -75,8 +75,17 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
           script: |
+            # Deploy the Backend
             cd ~/sentify-deploy/backend
-            # Restart backend using PM2 (or start it if it's not running)
-            pm2 restart all || pm2 start server.js --name sentify-backend
-            # Optionally, reload your web server (e.g., Nginx) if used:
+            pm2 restart sentify-backend --update-env || pm2 start server.js --name sentify-backend
+
+            # Deploy the ML Microservice
+            cd ~/sentify-deploy/ml
+            pm2 restart sentify-ml || pm2 start "python app.py" --name sentify-ml
+
+            # Deploy the Frontend Build using serve (adjust port as needed)
+            cd ~/sentify-deploy/frontend/build
+            pm2 restart sentify-frontend || pm2 start "serve -s . -l 3000" --name sentify-frontend
+
+            # (Optional) Reload your web server (e.g., Nginx) if you use one
             # sudo systemctl reload nginx
